@@ -1,0 +1,80 @@
+#!/usr/bin/env node
+
+var Argv = require('argv');
+var Bundler = require('../');
+var Fs = require('fs');
+var Package = require('../package.json');
+var Path = require('path');
+
+
+Argv
+    .info('wt-bundle [options] <path>')
+    .option([
+        {
+            name: 'output',
+            short: 'o',
+            type: 'path',
+            description: 'Write the bundled code to a file instead of stdout',
+        },
+        {
+            name: 'watch',
+            short: 'w',
+            type: 'boolean',
+            description: 'Watch the source file for changes',
+        },
+    ])
+    .version(Package.version);
+
+
+
+var args = Argv.run();
+
+if (!args.targets.length) {
+    return exitError('Missing required `path` argument', { showHelp: true });
+}
+
+if (args.options.watch && !args.options.output) {
+    return exitError('An `ouput` path is required when `watch` is enabled', { showHelp: true });
+}
+
+var bundle$ = Bundler.bundle({
+    entry: Path.resolve(Path.join(process.cwd(), args.targets[0])),
+    watch: args.options.watch,
+});
+
+bundle$.subscribe(onNext, onError, onComplete);
+
+function onNext(build) {
+    if (args.options.output) {
+        console.log('Successfully built code at generation %d', build.generation);
+        console.log('Writing code to `%s`', args.options.output);
+        
+        Fs.writeFileSync(args.options.output, build.code, 'utf8');
+    } else {
+        console.log(build.code);
+    }
+}
+
+function onError(err) {
+    console.error(err.message);
+}
+
+function onComplete() {
+    process.exit(0);
+}
+
+function exitError(message, options) {
+    if (!options) options = {};
+    
+    var exitCode = typeof options.exitCode === 'undefined'
+        ?   1
+        :   options.exitCode;
+    
+    console.error(message);
+    
+    if (options.showHelp) {
+        Argv.help();
+    }
+    
+    process.exit(exitCode);
+}
