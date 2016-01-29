@@ -3,6 +3,7 @@
 var Argv = require('argv');
 var Bundler = require('../');
 var Fs = require('fs');
+var Mkdirp = require('mkdirp');
 var Package = require('../package.json');
 var Path = require('path');
 
@@ -10,6 +11,12 @@ var Path = require('path');
 Argv
     .info('wt-bundle [options] <path>')
     .option([
+        {
+            name: 'prod',
+            short: 'p',
+            type: 'boolean',
+            description: 'Generate a minimized production build',
+        },
         {
             name: 'output',
             short: 'o',
@@ -39,6 +46,7 @@ if (args.options.watch && !args.options.output) {
 
 var bundle$ = Bundler.bundle({
     entry: Path.resolve(Path.join(process.cwd(), args.targets[0])),
+    minify: args.options.prod,
     watch: args.options.watch,
 });
 
@@ -46,10 +54,23 @@ bundle$.subscribe(onNext, onError, onComplete);
 
 function onNext(build) {
     if (args.options.output) {
-        console.log('Successfully built code at generation %d', build.generation);
-        console.log('Writing code to `%s`', args.options.output);
+        if (args.options.watch) {
+            console.log('Successfully built code at generation %d', build.generation);
+        }
         
-        Fs.writeFileSync(args.options.output, build.code, 'utf8');
+        Mkdirp(Path.dirname(args.options.output), function (err) {
+            if (err) {
+                return exitError('Error creating the output directory: ' + err.message);
+            }
+            
+            Fs.writeFile(args.options.output, build.code, 'utf8', function (err) {
+                if (err) {
+                    return exitError('Error writing output to `' + Path.basename(args.options.output) + '`: ' + err.message);
+                }
+                
+                console.log('Bundle successfully written to `%s`', args.options.output);
+            });
+        });
     } else {
         console.log(build.code);
     }
@@ -60,7 +81,6 @@ function onError(err) {
 }
 
 function onComplete() {
-    process.exit(0);
 }
 
 function exitError(message, options) {
