@@ -19,8 +19,7 @@ parser.addArgument(
     ['--loose'],
     {
         help: 'Skip the strict Semver versioning test for required modules',
-        nargs: 0,
-        constant: true,
+        action: 'storeTrue',
         defaultValue: false,
         dest: 'loose',
     }
@@ -30,8 +29,7 @@ parser.addArgument(
     ['-p', '--prod'],
     {
         help: 'Generate a minimized production build',
-        nargs: 0,
-        constant: true,
+        action: 'storeTrue',
         defaultValue: false,
         dest: 'prod',
     }
@@ -51,8 +49,7 @@ parser.addArgument(
     ['-w', '--watch'],
     {
         help: 'Watch the source file for changes',
-        nargs: 0,
-        constant: true,
+        action: 'storeTrue',
         defaultValue: false,
         dest: 'watch',
     }

@@ -21,6 +21,7 @@
     "babel-loader": "^6.2.1",
     "css-loader": "^0.23.1",
     "file-loader": "^0.8.5",
+    "glob": "^6.0.4",
     "json-loader": "^0.5.4",
     "less": "^2.5.3",
     "less-loader": "^2.2.2",

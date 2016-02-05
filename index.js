@@ -1,3 +1,4 @@
+var Glob = require('glob');
 var MemoryFs = require('memory-fs');
 var Path = require('path');
 var Rx = require('rxjs');
@@ -64,7 +65,7 @@ function bundle(options) {
                         return acc;
                     }, {
                         native: {},
-                        installed: {},
+                        installed: BUILTIN,
                     });
                     
                     subscriber.next(modules);
@@ -88,18 +89,65 @@ function bundle(options) {
         
         
         return Rx.Observable.from(dirs.reverse())
-            .map(readPackageJson)
-            .filter(Boolean)
+            .map(findPackageJsonDir)
             .take(1)
+            .flatMap(listPackageJsonFiles)
+            .flatMap(extractDependencies)
+            .reduce(function (acc, dep) { return acc.concat([dep]); }, [])
             .map(compareToModules);
         
-        function readPackageJson(dirname) {
-            try {
-                var pkgJson = require(Path.join(dirname, 'package.json'));
-                 return pkgJson.dependencies;
-            } catch (__) { }
+        function findPackageJsonDir(dirname) {
+            var pathname = Path.join(dirname, 'package.json');
             
-            return null;
+            try {
+                // See if this succeeds (sync)
+                require(pathname);
+                
+                return dirname;
+            } catch (__) {
+                return;
+            }
+        }
+        
+        function listPackageJsonFiles(dirname) {
+            return Rx.Observable.create(function (subscriber) {
+                var pathname = Path.join(dirname, 'package.json');
+                
+                try {
+                    subscriber.next(pathname);
+                    
+                    return Glob('**/package.json', {
+                        cwd: dirname,
+                    }, function (err, matches) {
+                        if (err) return subscriber.error(err);
+                        
+                        matches
+                            .map(function (path) { return Path.join(dirname, path); })
+                            .forEach(subscriber.next, subscriber);
+                        
+                        subscriber.complete();
+                    });
+                } catch (e) {
+                    subscriber.error(e);
+                }
+            });
+        }
+        
+        function extractDependencies(pathname) {
+            return Rx.Observable.create(function (subscriber) {
+                try {
+                    // See if this succeeds (sync)
+                    var dependencies = require(pathname).dependencies || {};
+                    
+                    Object.keys(dependencies).forEach(function (key) {
+                        subscriber.next({ name: key, spec: dependencies[key] });
+                    });
+                    
+                    subscriber.complete();
+                } catch (e) {
+                    subscriber.error(e);
+                }
+            });
         }
         
         // Only mark modules as externals if the range required in the top-most
@@ -111,9 +159,10 @@ function bundle(options) {
                 bundled: {},
             };
             
-            Object.keys(dependencies).forEach(function (moduleName) {
+            dependencies.forEach(function (dependency) {
+                var moduleName = dependency.name;
+                var spec = dependency.spec || '*';
                 var available = modules.installed[moduleName];
-                var spec = dependencies[moduleName] || '*';
                 var defaultWebtaskVersion = available && available[0];
                 
                 if (defaultWebtaskVersion && (options.loose || Semver.satisfies(defaultWebtaskVersion, spec))) {
