@@ -113,9 +113,10 @@ function bundle(options) {
             
             Object.keys(dependencies).forEach(function (moduleName) {
                 var available = modules.installed[moduleName];
-                var spec = dependencies[moduleName];
+                var spec = dependencies[moduleName] || '*';
+                var defaultWebtaskVersion = available && available[0];
                 
-                if (available && available.length && Semver.satisfies(available[0], spec)) {
+                if (defaultWebtaskVersion && (options.loose || Semver.satisfies(defaultWebtaskVersion, spec))) {
                     context.externals[moduleName] = true;
                 } else {
                     context.bundled[moduleName] = {

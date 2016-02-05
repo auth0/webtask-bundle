@@ -16,6 +16,17 @@ var parser = new ArgumentParser({
 });
 
 parser.addArgument(
+    ['--loose'],
+    {
+        help: 'Skip the strict Semver versioning test for required modules',
+        nargs: 0,
+        constant: true,
+        defaultValue: false,
+        dest: 'loose',
+    }
+);
+
+parser.addArgument(
     ['-p', '--prod'],
     {
         help: 'Generate a minimized production build',
@@ -67,6 +78,7 @@ if (args.watch && !args.output) {
 
 var bundle$ = Bundler.bundle({
     entry: Path.resolve(Path.join(process.cwd(), args.filename)),
+    loose: args.loose,
     minify: args.prod,
     watch: args.watch,
 });
