@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-var Argv = require('argv');
+var ArgumentParser = require('argparse').ArgumentParser;
 var Bundler = require('../');
 var Fs = require('fs');
 var Mkdirp = require('mkdirp');
@@ -8,67 +8,88 @@ var Package = require('../package.json');
 var Path = require('path');
 
 
-Argv
-    .info('wt-bundle [options] <path>')
-    .option([
-        {
-            name: 'prod',
-            short: 'p',
-            type: 'boolean',
-            description: 'Generate a minimized production build',
-        },
-        {
-            name: 'output',
-            short: 'o',
-            type: 'path',
-            description: 'Write the bundled code to a file instead of stdout',
-        },
-        {
-            name: 'watch',
-            short: 'w',
-            type: 'boolean',
-            description: 'Watch the source file for changes',
-        },
-    ])
-    .version(Package.version);
+var parser = new ArgumentParser({
+    description: 'Intelligently bundle your code for https://webtask.io',
+    epilog: 'See https://webtask.io/docs for more information',
+    prog: Object.keys(Package.bin)[0],
+    version: Package.version,
+});
+
+parser.addArgument(
+    ['-p', '--prod'],
+    {
+        help: 'Generate a minimized production build',
+        nargs: 0,
+        constant: true,
+        defaultValue: false,
+        dest: 'prod',
+    }
+);
+
+parser.addArgument(
+    ['-o', '--output'],
+    {
+        help: 'Write the bundled code to a file instead of stdout',
+        type: 'string',
+        dest: 'output',
+        metavar: '<OUTPUT>'
+    }
+);
+
+parser.addArgument(
+    ['-w', '--watch'],
+    {
+        help: 'Watch the source file for changes',
+        nargs: 0,
+        constant: true,
+        defaultValue: false,
+        dest: 'watch',
+    }
+);
+
+parser.addArgument(
+    ['filename'],
+    {
+        metavar: '<FILENAME>',
+        type: String,
+        help: 'Entrypoint filename for your webtask code',
+        defaultValue: './webtask.js',
+    }
+);
 
 
 
-var args = Argv.run();
+var args = parser.parseArgs();
 
-if (!args.targets.length) {
-    return exitError('Missing required `path` argument', { showHelp: true });
-}
-
-if (args.options.watch && !args.options.output) {
+if (args.watch && !args.output) {
     return exitError('An `ouput` path is required when `watch` is enabled', { showHelp: true });
 }
 
 var bundle$ = Bundler.bundle({
-    entry: Path.resolve(Path.join(process.cwd(), args.targets[0])),
-    minify: args.options.prod,
-    watch: args.options.watch,
+    entry: Path.resolve(Path.join(process.cwd(), args.filename)),
+    minify: args.prod,
+    watch: args.watch,
 });
 
 bundle$.subscribe(onNext, onError, onComplete);
 
 function onNext(build) {
-    if (args.options.output) {
-        if (args.options.watch) {
+    if (args.output) {
+        if (args.watch) {
             console.log('Successfully built code at generation %d', build.generation);
         }
         
-        Mkdirp(Path.dirname(args.options.output), function (err) {
+        Mkdirp(Path.dirname(args.output), function (err) {
             if (err) {
                 return exitError('Error creating the output directory: ' + err.message);
             }
             
-            Fs.writeFile(args.options.output, build.code, 'utf8', function (err) {
+            Fs.writeFile(args.output, build.code, 'utf8', function (err) {
                 if (err) {
-                    return exitError('Error writing output to `' + Path.basename(args.options.output) + '`: ' + err.message);
+                    return exitError('Error writing output to `' + Path.basename(args.output) + '`: ' + err.message);
                 }
                 
-                console.log('Bundle successfully written to `%s`', args.options.output);
+                console.log('Bundle successfully written to `%s`', args.output);
             });
         });
     } else {
