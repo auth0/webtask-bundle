@@ -2,6 +2,7 @@
 
 var ArgumentParser = require('argparse').ArgumentParser;
 var Bundler = require('../');
+var Checker = require('../checker.js');
 var Fs = require('fs');
 var Mkdirp = require('mkdirp');
 var Package = require('../package.json');
@@ -66,11 +67,51 @@ parser.addArgument(
 );
 
 
+var subparsers = parser.addSubparsers({
+    title: 'modules',
+    dest:  'modules'
+});
+
+subparsers.addParser('check', {
+    help: 'Check the version of each module against webtask.io'
+});
+
+subparsers.addParser('sync', {
+    help: 'Recreate "package.json" using webtask.io compatible version of each module'
+})
+.addArgument(
+    ['-i'],
+    {
+        help: 'Ask on every module ',
+        action: 'storeTrue',
+        dest: 'interactive'
+    }
+);
 
 var args = parser.parseArgs();
 
 if (args.watch && !args.output) {
     return exitError('An `ouput` path is required when `watch` is enabled', { showHelp: true });
+}
+
+if (args.modules === 'check') {
+    var $check = Checker.check({
+        entry: Path.resolve(process.cwd())
+    });
+    $check.subscribe(function () {}, onError, onComplete);
+
+    return;
+}
+
+if (args.modules === 'sync') {
+    var $sync = Checker.sync({
+        entry: Path.resolve(process.cwd()),
+        interactive: args.interactive
+    });
+
+    $sync.subscribe(function () {}, onError, onComplete);
+
+    return;
 }
 
 var bundle$ = Bundler.bundle({
@@ -93,17 +134,17 @@ function onNext(build) {
         if (args.watch) {
             console.log('Successfully built code at generation %d', build.generation);
         }
-        
+
         Mkdirp(Path.dirname(args.output), function (err) {
             if (err) {
                 return exitError('Error creating the output directory: ' + err.message);
             }
-            
+
             Fs.writeFile(args.output, build.code, 'utf8', function (err) {
                 if (err) {
                     return exitError('Error writing output to `' + Path.basename(args.output) + '`: ' + err.message);
                 }
-                
+
                 console.log('Bundle successfully written to `%s`', args.output);
             });
         });
@@ -121,16 +162,16 @@ function onComplete() {
 
 function exitError(message, options) {
     if (!options) options = {};
-    
+
     var exitCode = typeof options.exitCode === 'undefined'
         ?   1
         :   options.exitCode;
-    
+
     console.error(message);
-    
+
     if (options.showHelp) {
         Argv.help();
     }
-    
+
     process.exit(exitCode);
 }
