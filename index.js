@@ -36,9 +36,9 @@ function bundle(options) {
     if (!options.entry) return Rx.Observable.throw(new Error('The `entry` option is required'));
     
     return loadModules()
-        .flatMap(calculateExternals)
+        .mergeMap(calculateExternals)
         .map(configureWebpack)
-        .flatMap(compileBundle);
+        .mergeMap(compileBundle);
     
     function loadModules() {
         return Rx.Observable.create(function (subscriber) {
@@ -76,38 +76,31 @@ function bundle(options) {
     }
     
     function calculateExternals(modules) {
-        var dirs = Path.dirname(Path.normalize(options.entry))
+        var segments = Path.dirname(Path.normalize(options.entry))
             .split(Path.sep)
-            .filter(Boolean)
-            .reduce(function (acc, segment) {
-                var parent = acc.length
-                    ?   acc[acc.length - 1] 
-                    :   '';
+            .filter(Boolean);
+        
+        while (segments.length) {
+            try {
+                var pathname = Path.sep + Path.join.apply(null, segments.concat(['package.json']));
                 
-                return acc.concat([parent + Path.sep + segment]);
-            }, []);
+                // When require doesn't throw, we break out of the loop
+                require(pathname);
+
+                break;
+            } catch (__) { }
+            
+            segments.pop();
+        }
         
+        var dirname = segments.length
+            ?   Path.resolve(Path.sep + Path.join.apply(null, segments))
+            :   process.cwd();
         
-        return Rx.Observable.from(dirs.reverse())
-            .map(findPackageJsonDir)
-            .take(1)
-            .flatMap(listPackageJsonFiles)
+        return listPackageJsonFiles(dirname)
             .flatMap(extractDependencies)
             .reduce(function (acc, dep) { return acc.concat([dep]); }, [])
             .map(compareToModules);
-        
-        function findPackageJsonDir(dirname) {
-            var pathname = Path.join(dirname, 'package.json');
-            
-            try {
-                // See if this succeeds (sync)
-                require(pathname);
-                
-                return dirname;
-            } catch (__) {
-                return;
-            }
-        }
         
         function listPackageJsonFiles(dirname) {
             return Rx.Observable.create(function (subscriber) {
@@ -190,13 +183,33 @@ function bundle(options) {
                 libraryTarget: 'commonjs2',
             },
             externals: context.externals,
+            module: {
+                loaders: [
+                    {
+                        test: /\.jsx?$/,
+                        exclude: /node_modules/,
+                        loader: require.resolve('babel-loader'),
+                        query: {
+                            presets: [require.resolve('babel-preset-es2015')],
+                            plugins: [require.resolve('babel-plugin-transform-runtime')],
+                        },
+                    }
+                ],
+            },
             plugins: [
                 new Webpack.optimize.DedupePlugin(),
             ],
             resolve: {
                 modulesDirectories: ['node_modules'],
-                root: __dirname,
+                fallback: Path.join(__dirname, 'node_modules'),
+                root: [process.cwd(), __dirname],
                 alias: {},
+            },
+            resolveLoaders: {
+                modulesDirectories: ['node_modules'],
+                root: __dirname,
+                extensions: ['', '.webpack-loader.js', '.web-loader.js', '.loader.js', '.js'],
+                packageMains: ['webpackLoader', 'webLoader', 'loader', 'main'],
             },
             node: {
                 console: false,
@@ -236,12 +249,16 @@ function bundle(options) {
             
             function onGeneration(stats) {
                 try {
-                    var code = memFs.readFileSync('/bundle.js', 'utf8');
+                    var info = stats.toJson();
+                    var code = stats.hasErrors()
+                        ?   undefined
+                        :   memFs.readFileSync('/bundle.js', 'utf8');
                     
                     subscriber.next({
                         code: code,
                         generation: ++generation,
-                        stats: stats.toJson(),
+                        stats: info,
+                        config: config,
                     });
                 } catch (e) {
                     subscriber.error(e);
