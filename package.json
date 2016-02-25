@@ -22,7 +22,6 @@
     "babel-preset-es2015": "^6.5.0",
     "babel-runtime": "^6.5.0",
     "glob": "^6.0.4",
-    "less": "^2.5.3",
     "lodash": "^3.10.1",
     "memory-fs": "^0.3.0",
     "mkdirp": "^0.5.1",
