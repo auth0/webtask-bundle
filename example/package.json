@@ -11,7 +11,8 @@
   "license": "ISC",
   "dependencies": {
     "express": "^4.12.0",
-    "joi": "^2.9.0"
+    "joi": "^2.9.0",
+    "webtask-tools": "^1.3.0"
   },
   "devDependencies": {},
   "description": ""
