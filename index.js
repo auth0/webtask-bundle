@@ -21,7 +21,7 @@ var BUILTIN = {
     'nodalytics': ['1.1.0'],
     'restify': ['2.8.5'],
     'sandboxjs': ['2.0.0'],
-    'webtask-tools': ['1.2.0'],
+    'webtask-tools': ['1.3.0'],
     'zmq': ['2.13.0'],
 };
 

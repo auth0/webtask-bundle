@@ -83,6 +83,12 @@ var bundle$ = Bundler.bundle({
 bundle$.subscribe(onNext, onError, onComplete);
 
 function onNext(build) {
+    if (build.stats.errors.length) {
+        console.error('Build failed at generation %d with errors:', build.generation);
+        console.error(build.stats.errors);
+        return;
+    }
+    
     if (args.output) {
         if (args.watch) {
             console.log('Successfully built code at generation %d', build.generation);
