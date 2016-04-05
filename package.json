@@ -1,6 +1,6 @@
 {
   "name": "webtask-bundle",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "description": "Bundle your webtask scripts",
   "main": "index.js",
   "bin": {
