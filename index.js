@@ -193,7 +193,11 @@ function bundle(options) {
                             presets: [require.resolve('babel-preset-es2015')],
                             plugins: [require.resolve('babel-plugin-transform-runtime')],
                         },
-                    }
+                    },
+                    {
+                        test: /\.json$/,
+                        loader: require.resolve('json-loader'),
+                    },
                 ],
             },
             plugins: [
