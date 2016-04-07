@@ -85,7 +85,7 @@ bundle$.subscribe(onNext, onError, onComplete);
 function onNext(build) {
     if (build.stats.errors.length) {
         console.error('Build failed at generation %d with errors:', build.generation);
-        console.error(build.stats.errors);
+        build.stats.errors.forEach(error => console.error(error.stack || error));
         return;
     }
     
@@ -113,7 +113,7 @@ function onNext(build) {
 }
 
 function onError(err) {
-    console.error(err.message);
+    console.error(err.stack);
 }
 
 function onComplete() {
