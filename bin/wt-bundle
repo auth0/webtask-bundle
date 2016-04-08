@@ -1,42 +1,48 @@
 #!/usr/bin/env node
 
-var ArgumentParser = require('argparse').ArgumentParser;
-var Bundler = require('../');
-var Checker = require('../checker.js');
-var Fs = require('fs');
-var Mkdirp = require('mkdirp');
-var Package = require('../package.json');
-var Path = require('path');
+const ArgumentParser = require('argparse').ArgumentParser;
+const Bundler = require('../');
+const Checker = require('../lib/checker.js');
+const Fs = require('fs');
+const Mkdirp = require('mkdirp');
+const Package = require('../package.json');
+const Path = require('path');
 
 
-var parser = new ArgumentParser({
+const parser = new ArgumentParser({
     description: 'Intelligently bundle your code for https://webtask.io',
     epilog: 'See https://webtask.io/docs for more information',
     prog: Object.keys(Package.bin)[0],
     version: Package.version,
+    addHelp: true,
 });
 
-parser.addArgument(
-    ['--loose'],
+const bundleArgs = parser.addArgumentGroup({
+    title: 'Bundling',
+    // description: 'Options related to the default bundle mode.',
+});
+
+bundleArgs.addArgument(
+    ['--strict'],
     {
-        help: 'Skip the strict Semver versioning test for required modules',
+        help: 'Enable the strict Semver versioning test for required modules',
         action: 'storeTrue',
         defaultValue: false,
-        dest: 'loose',
+        dest: 'strict',
     }
 );
 
-parser.addArgument(
-    ['-p', '--prod'],
+bundleArgs.addArgument(
+    ['-m', '--minify'],
     {
-        help: 'Generate a minimized production build',
+        help: 'Generate a minified production build',
         action: 'storeTrue',
         defaultValue: false,
-        dest: 'prod',
+        dest: 'minify',
     }
 );
 
-parser.addArgument(
+bundleArgs.addArgument(
     ['-o', '--output'],
     {
         help: 'Write the bundled code to a file instead of stdout',
@@ -46,13 +52,53 @@ parser.addArgument(
     }
 );
 
-parser.addArgument(
+bundleArgs.addArgument(
     ['-w', '--watch'],
     {
         help: 'Watch the source file for changes',
         action: 'storeTrue',
         defaultValue: false,
         dest: 'watch',
+    }
+);
+
+const analyzeArgs = parser.addArgumentGroup({
+    title: 'Module analysis',
+    // description: 'Options for analyzing package versions.',
+});
+
+analyzeArgs.addArgument(
+    ['--analyze'],
+    {
+        help: 'Check the version of each module in your package.json against modules available on webtask.io.',
+        action: 'storeTrue',
+        defaultValue: false,
+        dest: 'analyze',
+    }
+);
+
+const syncArgs = parser.addArgumentGroup({
+    title: 'Version synchronization',
+    // description: 'Options related to the synchronization of module versions with those on webtask.io.',
+});
+
+syncArgs.addArgument(
+    ['--sync'],
+    {
+        help: 'Check the version of each module in your package.json with the versions available on webtask.io. Use the --interactive option if you want to select which packages to sync.',
+        action: 'storeTrue',
+        defaultValue: false,
+        dest: 'sync',
+    }
+);
+
+syncArgs.addArgument(
+    ['-i', '--interactive'],
+    {
+        help: 'Enable the interactive synchronization of modules when using the --sync option.',
+        action: 'storeTrue',
+        defaultValue: false,
+        dest: 'interactive',
     }
 );
 
@@ -67,61 +113,52 @@ parser.addArgument(
 );
 
 
-var subparsers = parser.addSubparsers({
-    title: 'modules',
-    dest:  'modules'
-});
-
-subparsers.addParser('check', {
-    help: 'Check the version of each module against webtask.io'
-});
-
-subparsers.addParser('sync', {
-    help: 'Recreate "package.json" using webtask.io compatible version of each module'
-})
-.addArgument(
-    ['-i'],
-    {
-        help: 'Ask on every module ',
-        action: 'storeTrue',
-        dest: 'interactive'
-    }
-);
-
 var args = parser.parseArgs();
 
 if (args.watch && !args.output) {
     return exitError('An `ouput` path is required when `watch` is enabled', { showHelp: true });
 }
 
-if (args.modules === 'check') {
-    var $check = Checker.check({
-        entry: Path.resolve(process.cwd())
-    });
-    $check.subscribe(function () {}, onError, onComplete);
-
-    return;
+if (args.interactive && !args.sync) {
+    return exitError('The `--interactive` option can only be used with the `--sync` option.');
 }
 
-if (args.modules === 'sync') {
-    var $sync = Checker.sync({
-        entry: Path.resolve(process.cwd()),
-        interactive: args.interactive
+if (args.analyze) {
+    ['strict', 'minify', 'output', 'watch', 'sync', 'interactive']
+        .forEach(arg => {
+            if (args[arg]) return exitError(`The '--${arg}' option is incompatible with '--analyze'.`);
+        });
+    
+    
+    var check$ = Checker.check({
+        entry: args.filename,
+    });
+    
+    check$.subscribe(function () {}, onError, onComplete);
+} else if (args.sync) {
+    ['strict', 'minify', 'output', 'watch', 'analyze']
+        .forEach(arg => {
+            if (args[arg]) return exitError(`The '--${arg}' option is incompatible with '--sync'.`);
+        });
+        
+    var sync$ = Checker.sync({
+        entry: args.filename,
+        interactive: args.interactive,
     });
 
-    $sync.subscribe(function () {}, onError, onComplete);
-
-    return;
+    sync$.subscribe(function () {}, onError, onComplete);
+} else {
+    
+    var bundle$ = Bundler.bundle({
+        entry: Path.resolve(Path.join(process.cwd(), args.filename)),
+        loose: !args.strict,
+        minify: args.minify,
+        watch: args.watch,
+    });
+    
+    bundle$.subscribe(onNext, onError, onComplete);
 }
 
-var bundle$ = Bundler.bundle({
-    entry: Path.resolve(Path.join(process.cwd(), args.filename)),
-    loose: args.loose,
-    minify: args.prod,
-    watch: args.watch,
-});
-
-bundle$.subscribe(onNext, onError, onComplete);
 
 function onNext(build) {
     if (build.stats.errors.length) {
@@ -170,7 +207,7 @@ function exitError(message, options) {
     console.error(message);
 
     if (options.showHelp) {
-        Argv.help();
+        parser.help();
     }
 
     process.exit(exitCode);
