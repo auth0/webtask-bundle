@@ -14,7 +14,7 @@
   ],
   "author": "Geoff Goodman",
   "license": "MIT",
-  "dependencies": {
+   "dependencies": {
     "argparse": "^1.0.5",
     "async": "^2.0.0-rc.2",
     "babel-core": "^6.5.1",
@@ -22,11 +22,14 @@
     "babel-plugin-transform-runtime": "^6.5.0",
     "babel-preset-es2015": "^6.5.0",
     "babel-runtime": "^6.5.0",
+    "cli-table": "^0.3.1",
+    "colors": "^1.1.2",
     "glob": "^6.0.4",
     "json-loader": "^0.5.4",
     "memory-fs": "^0.3.0",
     "mkdirp": "^0.5.1",
     "raw-loader": "^0.5.1",
+    "readline-sync": "^1.3.1",
     "rxjs": "^5.0.0-beta.2",
     "semver": "^5.1.0",
     "superagent": "^1.7.2",
