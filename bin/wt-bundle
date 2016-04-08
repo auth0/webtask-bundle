@@ -1,41 +1,48 @@
 #!/usr/bin/env node
 
-var ArgumentParser = require('argparse').ArgumentParser;
-var Bundler = require('../');
-var Fs = require('fs');
-var Mkdirp = require('mkdirp');
-var Package = require('../package.json');
-var Path = require('path');
+const ArgumentParser = require('argparse').ArgumentParser;
+const Bundler = require('../');
+const Checker = require('../lib/checker.js');
+const Fs = require('fs');
+const Mkdirp = require('mkdirp');
+const Package = require('../package.json');
+const Path = require('path');
 
 
-var parser = new ArgumentParser({
+const parser = new ArgumentParser({
     description: 'Intelligently bundle your code for https://webtask.io',
     epilog: 'See https://webtask.io/docs for more information',
     prog: Object.keys(Package.bin)[0],
     version: Package.version,
+    addHelp: true,
 });
 
-parser.addArgument(
-    ['--loose'],
+const bundleArgs = parser.addArgumentGroup({
+    title: 'Bundling',
+    // description: 'Options related to the default bundle mode.',
+});
+
+bundleArgs.addArgument(
+    ['--strict'],
     {
-        help: 'Skip the strict Semver versioning test for required modules',
+        help: 'Enable the strict Semver versioning test for required modules',
         action: 'storeTrue',
         defaultValue: false,
-        dest: 'loose',
+        dest: 'strict',
     }
 );
 
-parser.addArgument(
-    ['-p', '--prod'],
+bundleArgs.addArgument(
+    ['-m', '--minify'],
     {
-        help: 'Generate a minimized production build',
+        help: 'Generate a minified production build',
         action: 'storeTrue',
         defaultValue: false,
-        dest: 'prod',
+        dest: 'minify',
     }
 );
 
-parser.addArgument(
+bundleArgs.addArgument(
     ['-o', '--output'],
     {
         help: 'Write the bundled code to a file instead of stdout',
@@ -45,13 +52,53 @@ parser.addArgument(
     }
 );
 
-parser.addArgument(
+bundleArgs.addArgument(
     ['-w', '--watch'],
     {
         help: 'Watch the source file for changes',
         action: 'storeTrue',
         defaultValue: false,
         dest: 'watch',
+    }
+);
+
+const analyzeArgs = parser.addArgumentGroup({
+    title: 'Module analysis',
+    // description: 'Options for analyzing package versions.',
+});
+
+analyzeArgs.addArgument(
+    ['--analyze'],
+    {
+        help: 'Check the version of each module in your package.json against modules available on webtask.io.',
+        action: 'storeTrue',
+        defaultValue: false,
+        dest: 'analyze',
+    }
+);
+
+const syncArgs = parser.addArgumentGroup({
+    title: 'Version synchronization',
+    // description: 'Options related to the synchronization of module versions with those on webtask.io.',
+});
+
+syncArgs.addArgument(
+    ['--sync'],
+    {
+        help: 'Check the version of each module in your package.json with the versions available on webtask.io. Use the --interactive option if you want to select which packages to sync.',
+        action: 'storeTrue',
+        defaultValue: false,
+        dest: 'sync',
+    }
+);
+
+syncArgs.addArgument(
+    ['-i', '--interactive'],
+    {
+        help: 'Enable the interactive synchronization of modules when using the --sync option.',
+        action: 'storeTrue',
+        defaultValue: false,
+        dest: 'interactive',
     }
 );
 
@@ -66,26 +113,57 @@ parser.addArgument(
 );
 
 
-
 var args = parser.parseArgs();
 
 if (args.watch && !args.output) {
     return exitError('An `ouput` path is required when `watch` is enabled', { showHelp: true });
 }
 
-var bundle$ = Bundler.bundle({
-    entry: Path.resolve(Path.join(process.cwd(), args.filename)),
-    loose: args.loose,
-    minify: args.prod,
-    watch: args.watch,
-});
+if (args.interactive && !args.sync) {
+    return exitError('The `--interactive` option can only be used with the `--sync` option.');
+}
 
-bundle$.subscribe(onNext, onError, onComplete);
+if (args.analyze) {
+    ['strict', 'minify', 'output', 'watch', 'sync', 'interactive']
+        .forEach(arg => {
+            if (args[arg]) return exitError(`The '--${arg}' option is incompatible with '--analyze'.`);
+        });
+    
+    
+    var check$ = Checker.check({
+        entry: args.filename,
+    });
+    
+    check$.subscribe(function () {}, onError, onComplete);
+} else if (args.sync) {
+    ['strict', 'minify', 'output', 'watch', 'analyze']
+        .forEach(arg => {
+            if (args[arg]) return exitError(`The '--${arg}' option is incompatible with '--sync'.`);
+        });
+        
+    var sync$ = Checker.sync({
+        entry: args.filename,
+        interactive: args.interactive,
+    });
+
+    sync$.subscribe(function () {}, onError, onComplete);
+} else {
+    
+    var bundle$ = Bundler.bundle({
+        entry: Path.resolve(Path.join(process.cwd(), args.filename)),
+        loose: !args.strict,
+        minify: args.minify,
+        watch: args.watch,
+    });
+    
+    bundle$.subscribe(onNext, onError, onComplete);
+}
+
 
 function onNext(build) {
     if (build.stats.errors.length) {
         console.error('Build failed at generation %d with errors:', build.generation);
-        console.error(build.stats.errors);
+        build.stats.errors.forEach(error => console.error(error.stack || error));
         return;
     }
     
@@ -93,17 +171,17 @@ function onNext(build) {
         if (args.watch) {
             console.log('Successfully built code at generation %d', build.generation);
         }
-        
+
         Mkdirp(Path.dirname(args.output), function (err) {
             if (err) {
                 return exitError('Error creating the output directory: ' + err.message);
             }
-            
+
             Fs.writeFile(args.output, build.code, 'utf8', function (err) {
                 if (err) {
                     return exitError('Error writing output to `' + Path.basename(args.output) + '`: ' + err.message);
                 }
-                
+
                 console.log('Bundle successfully written to `%s`', args.output);
             });
         });
@@ -113,7 +191,7 @@ function onNext(build) {
 }
 
 function onError(err) {
-    console.error(err.message);
+    console.error(err.stack);
 }
 
 function onComplete() {
@@ -121,16 +199,16 @@ function onComplete() {
 
 function exitError(message, options) {
     if (!options) options = {};
-    
+
     var exitCode = typeof options.exitCode === 'undefined'
         ?   1
         :   options.exitCode;
-    
+
     console.error(message);
-    
+
     if (options.showHelp) {
-        Argv.help();
+        parser.help();
     }
-    
+
     process.exit(exitCode);
 }
