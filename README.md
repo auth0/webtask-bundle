@@ -5,7 +5,7 @@ Command line tool and node module for bundling your code to use on [webtask.io](
 **Features**
 
 * Organize your [webtask](https://webtask.io) code however you like
-* Work with any modules available on [npm](https://npm.com)
+* Work with any modules available on [npm](https://www.npmjs.com/)
 * Only bundle the modules that are not natively [available](https://tehsis.github.io/webtaskio-canirequire/) on the [webtask](https://webtask.io) platform
 
 ## Setup
