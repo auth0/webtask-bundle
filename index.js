@@ -7,7 +7,9 @@ const ConfigureWebpack = require('./lib/configureWebpack');
 const Rx = require('rxjs');
 
 
-module.exports.bundle = bundle;
+module.exports = {
+    bundle,
+};
 
 
 function bundle(options) {
