@@ -6,6 +6,9 @@
   "bin": {
     "wt-bundle": "./bin/wt-bundle"
   },
+  "scripts": {
+    "test": "lab -v"
+  },
   "keywords": [
     "webtask",
     "webtask.io",
@@ -35,5 +38,9 @@
     "semver": "^5.1.0",
     "superagent": "^1.7.2",
     "webpack": "^1.13.1"
+  },
+  "devDependencies": {
+    "code": "^4.0.0",
+    "lab": "^11.2.1"
   }
 }
