@@ -21,7 +21,7 @@
     "argparse": "^1.0.7",
     "async": "^2.1.4",
     "babel-core": "^6.24.1",
-    "babel-loader": "^6.4.1",
+    "babel-loader": "^7.0.0-beta.1",
     "babel-preset-env": "^1.3.3",
     "chalk": "^1.1.3",
     "cli-table": "^0.3.1",
