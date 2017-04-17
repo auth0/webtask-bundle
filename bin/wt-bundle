@@ -2,7 +2,6 @@
 
 const ArgumentParser = require('argparse').ArgumentParser;
 const Bundler = require('../');
-const Checker = require('../lib/checker.js');
 const Fs = require('fs');
 const Mkdirp = require('mkdirp');
 const Package = require('../package.json');
@@ -62,46 +61,6 @@ bundleArgs.addArgument(
     }
 );
 
-const analyzeArgs = parser.addArgumentGroup({
-    title: 'Module analysis',
-    // description: 'Options for analyzing package versions.',
-});
-
-analyzeArgs.addArgument(
-    ['--analyze'],
-    {
-        help: 'Check the version of each module in your package.json against modules available on webtask.io.',
-        action: 'storeTrue',
-        defaultValue: false,
-        dest: 'analyze',
-    }
-);
-
-const syncArgs = parser.addArgumentGroup({
-    title: 'Version synchronization',
-    // description: 'Options related to the synchronization of module versions with those on webtask.io.',
-});
-
-syncArgs.addArgument(
-    ['--sync'],
-    {
-        help: 'Check the version of each module in your package.json with the versions available on webtask.io. Use the --interactive option if you want to select which packages to sync.',
-        action: 'storeTrue',
-        defaultValue: false,
-        dest: 'sync',
-    }
-);
-
-syncArgs.addArgument(
-    ['-i', '--interactive'],
-    {
-        help: 'Enable the interactive synchronization of modules when using the --sync option.',
-        action: 'storeTrue',
-        defaultValue: false,
-        dest: 'interactive',
-    }
-);
-
 parser.addArgument(
     ['filename'],
     {
@@ -119,45 +78,14 @@ if (args.watch && !args.output) {
     return exitError('An `ouput` path is required when `watch` is enabled', { showHelp: true });
 }
 
-if (args.interactive && !args.sync) {
-    return exitError('The `--interactive` option can only be used with the `--sync` option.');
-}
+var bundle$ = Bundler.bundle({
+    entry: Path.resolve(Path.join(process.cwd(), args.filename)),
+    loose: !args.strict,
+    minify: args.minify,
+    watch: args.watch,
+});
 
-if (args.analyze) {
-    ['strict', 'minify', 'output', 'watch', 'sync', 'interactive']
-        .forEach(arg => {
-            if (args[arg]) return exitError(`The '--${arg}' option is incompatible with '--analyze'.`);
-        });
-    
-    
-    var check$ = Checker.check({
-        entry: args.filename,
-    });
-    
-    check$.subscribe(function () {}, onError, onComplete);
-} else if (args.sync) {
-    ['strict', 'minify', 'output', 'watch', 'analyze']
-        .forEach(arg => {
-            if (args[arg]) return exitError(`The '--${arg}' option is incompatible with '--sync'.`);
-        });
-        
-    var sync$ = Checker.sync({
-        entry: args.filename,
-        interactive: args.interactive,
-    });
-
-    sync$.subscribe(function () {}, onError, onComplete);
-} else {
-    
-    var bundle$ = Bundler.bundle({
-        entry: Path.resolve(Path.join(process.cwd(), args.filename)),
-        loose: !args.strict,
-        minify: args.minify,
-        watch: args.watch,
-    });
-    
-    bundle$.subscribe(onNext, onError, onComplete);
-}
+bundle$.subscribe(onNext, onError, onComplete);
 
 
 function onNext(build) {
@@ -166,7 +94,7 @@ function onNext(build) {
         build.stats.errors.forEach(error => console.error(error.stack || error));
         return;
     }
-    
+
     if (args.output) {
         if (args.watch) {
             console.log('Successfully built code at generation %d', build.generation);

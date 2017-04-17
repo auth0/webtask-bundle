@@ -1,9 +1,7 @@
 'use strict';
 
-const CalculateExternalsLoose = require('./lib/calculateExternalsLoose');
-const CalculateExternalsStrict = require('./lib/calculateExternalsStrict');
-const CompileBundle = require('./lib/compileBundle');
-const ConfigureWebpack = require('./lib/configureWebpack');
+const Compiler = require('./lib/compiler');
+const Config = require('./lib/config');
 const Rx = require('rxjs');
 
 
@@ -16,24 +14,21 @@ function bundle(options) {
     if (typeof options !== 'object') {
         return Rx.Observable.throw(new Error('Options must be an object'));
     }
-    
+
     if (!options.entry) {
         return Rx.Observable.throw(new Error('The `entry` option is required'));
     }
-    
+
     if (!options.name) {
         options.name = 'webtask';
     }
-    
-    const calculateExternals$ = options.loose
-        ?   Rx.Observable.bindNodeCallback(CalculateExternalsLoose)
-        :   Rx.Observable.bindNodeCallback(CalculateExternalsStrict);
-    
-    return calculateExternals$(options.entry)
-        .map(modules => ConfigureWebpack(Object.assign({}, options, { externals: modules.externals })))
+
+    const webpackConfig = Config.create(options);
+
+    return Rx.Observable.of(webpackConfig)
         .map(webpackConfig => ({
             webpackConfig,
             watch: !!options.watch,
         }))
-        .mergeMap(CompileBundle);
+        .mergeMap(Compiler.compile);
 }
