@@ -1,3 +1,7 @@
+# DISCLAIMER
+
+**As of version 3, webtask bundle no longer does any module resolution as this is now handled by [`wt-cli`](https://github.com/auth0/wt-cli). Users who are building bundled webtasks should use `wt` with the `--bundle` option instead**
+
 # Webtask Bundle: because sometimes one file isn't enough
 
 Command line tool and node module for bundling your code to use on [webtask.io](https://webtask.io).
