@@ -10,6 +10,7 @@ server.use(mockWebtaskContext);
 server.use(app);
 
 server.listen(port, function () {
+    // eslint-disable-next-line no-console
     console.log('Server started on port', port);
 });
 
@@ -22,6 +23,6 @@ function mockWebtaskContext(req, res, next) {
             data: {},
         };
     }
-    
+
     next();
 }

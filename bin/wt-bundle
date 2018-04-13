@@ -52,6 +52,17 @@ bundleArgs.addArgument(
 );
 
 bundleArgs.addArgument(
+    ['-n', '--node-version'],
+    {
+        help: 'Transpile code for the specified node version',
+        type: 'string',
+        dest: 'nodeVersion',
+        defaultValue: process.version.replace(/^v/, ''),
+        metavar: '<VERSION>'
+    }
+);
+
+bundleArgs.addArgument(
     ['-w', '--watch'],
     {
         help: 'Watch the source file for changes',
@@ -82,6 +93,7 @@ var bundle$ = Bundler.bundle({
     entry: Path.resolve(Path.join(process.cwd(), args.filename)),
     loose: !args.strict,
     minify: args.minify,
+    nodeVersion: args.nodeVersion,
     watch: args.watch,
 });
 
@@ -90,14 +102,17 @@ bundle$.subscribe(onNext, onError, onComplete);
 
 function onNext(build) {
     if (build.stats.errors.length) {
+        // eslint-disable-next-line no-console
         console.error('Build failed at generation %d with errors:', build.generation);
+        // eslint-disable-next-line no-console
         build.stats.errors.forEach(error => console.error(error.stack || error));
         return;
     }
 
     if (args.output) {
         if (args.watch) {
-            console.log('Successfully built code at generation %d', build.generation);
+        // eslint-disable-next-line no-console
+        console.log('Successfully built code at generation %d', build.generation);
         }
 
         Mkdirp(Path.dirname(args.output), function (err) {
@@ -110,15 +125,18 @@ function onNext(build) {
                     return exitError('Error writing output to `' + Path.basename(args.output) + '`: ' + err.message);
                 }
 
+                // eslint-disable-next-line no-console
                 console.log('Bundle successfully written to `%s`', args.output);
             });
         });
     } else {
+        // eslint-disable-next-line no-console
         console.log(build.code);
     }
 }
 
 function onError(err) {
+    // eslint-disable-next-line no-console
     console.error(err.stack);
 }
 
@@ -132,6 +150,7 @@ function exitError(message, options) {
         ?   1
         :   options.exitCode;
 
+    // eslint-disable-next-line no-console
     console.error(message);
 
     if (options.showHelp) {
