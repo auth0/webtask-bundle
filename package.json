@@ -18,11 +18,12 @@
   "author": "Geoff Goodman",
   "license": "MIT",
   "dependencies": {
+    "@babel/core": "^7.0.0-beta.44",
+    "@babel/polyfill": "^7.0.0-beta.44",
+    "@babel/preset-env": "^7.0.0-beta.44",
     "argparse": "^1.0.10",
     "async": "^2.6.0",
-    "babel-core": "^6.26.0",
-    "babel-loader": "^7.1.4",
-    "babel-preset-env": "^1.6.1",
+    "babel-loader": "^8.0.0-beta.2",
     "chalk": "^1.1.3",
     "cli-table": "^0.3.1",
     "glob": "^6.0.4",
@@ -38,8 +39,8 @@
     "webpack": "^4.5.0"
   },
   "devDependencies": {
-    "code": "^5.2.0",
+    "code": "^4.1.0",
     "eslint": "^4.19.1",
-    "lab": "^15.4.1"
+    "lab": "^14.3.4"
   }
 }
