@@ -2,8 +2,7 @@
 
 const Compiler = require('./lib/compiler');
 const Config = require('./lib/config');
-const Rx = require('rxjs');
-
+const Rx = require('rxjs/Rx');
 
 module.exports = {
     bundle,
