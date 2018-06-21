@@ -112,6 +112,33 @@ lab.experiment('Webtask bundling', { parallel: true }, () => {
                 done();
             });
     });
+
+    lab.test('will correctly bundle deep imports', { timeout: 10000 }, done => {
+        const dirname = Path.resolve(__dirname, './fixtures/webtask-with-deep-import/');
+        const pkgJson = require(Path.join(dirname, 'package.json'));
+        const bundle$ = Bundler.bundle({
+            dependencies: pkgJson.dependencies,
+            entry: Path.resolve(dirname, 'index.js'),
+            name: pkgJson.name,
+            nodeVersion: '8.9',
+        });
+        let output;
+        let error;
+
+        return void bundle$
+            .subscribe(_output => output = _output, _error => error = _error, () => {
+                expect(error).to.not.exist();
+                expect(output).to.be.an.object();
+                expect(output.code).to.be.a.string();
+                expect(output.generation).to.equal(1);
+                expect(output.stats).to.be.an.object();
+                expect(output.stats.errors).to.be.an.array();
+                expect(output.stats.errors.length).to.equal(0);
+                expect(output.stats.modules.length).to.equal(2);
+
+                done();
+            });
+    });
 });
 
 if (require.main === module) {
