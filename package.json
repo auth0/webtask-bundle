@@ -7,7 +7,7 @@
     "wt-bundle": "./bin/wt-bundle"
   },
   "scripts": {
-    "test": "lab -v"
+    "test": "lab -vf"
   },
   "keywords": [
     "webtask",
