@@ -1,13 +1,13 @@
 {
   "name": "webtask-bundle",
-  "version": "3.2.2",
+  "version": "3.2.3",
   "description": "Bundle your webtask scripts",
   "main": "index.js",
   "bin": {
     "wt-bundle": "./bin/wt-bundle"
   },
   "scripts": {
-    "test": "lab -v"
+    "test": "lab -vf"
   },
   "keywords": [
     "webtask",
@@ -24,18 +24,12 @@
     "argparse": "^1.0.10",
     "async": "^2.6.0",
     "babel-loader": "^8.0.0-beta.2",
-    "chalk": "^1.1.3",
-    "cli-table": "^0.3.1",
-    "glob": "^6.0.4",
     "imports-loader": "^0.7.1",
     "lodash": "^4.17.5",
     "memory-fs": "^0.3.0",
     "mkdirp": "^0.5.1",
     "raw-loader": "^0.5.1",
-    "readline-sync": "^1.4.9",
     "rxjs": "^5.5.10",
-    "semver": "^5.5.0",
-    "superagent": "^1.7.2",
     "webpack": "^4.5.0"
   },
   "devDependencies": {
